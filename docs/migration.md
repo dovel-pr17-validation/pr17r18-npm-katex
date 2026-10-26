@@ -1,0 +1,172 @@
+---
+id: migration
+title: Migration Guide
+---
+
+## v0.19.0
+
+> These changes were first published in v0.18.11, which was mistakenly
+> released as a patch version.
+
+### Missing character metrics are reported via `strict`
+
+When a symbol has no metrics in KaTeX's fonts (for example, `\origof` or
+`\char"20AC`), KaTeX used to always print a plain `console.warn`. It is now
+reported through the [`strict`](options.md) setting with the new error code
+`symbolNotInFont`. As a result:
+
+- The default `strict: "warn"` still warns, but the message has changed from
+  `No character metrics for '…' in style '…' and mode '…'` to
+  `LaTeX-incompatible input and strict mode is set to 'warn': No character
+  metrics for '…' in style '…' and mode '…' [symbolNotInFont]`. Update any
+  code that filters or matches on the old message.
+- With `strict: "error"` or `strict: true`, such input now throws a
+  `ParseError` instead of rendering. To keep the old behavior for this case
+  only, use a `strict` function:
+
+  ```js
+  katex.render(tex, element, {
+      strict: (errorCode) =>
+          errorCode === "symbolNotInFont" ? "warn" : "error",
+  });
+  ```
+
+- With `strict: "ignore"` or `strict: false`, the warning is no longer
+  printed. This (or a function returning one of these values) is the new way to silence it.
+
+### `strict` functions must return a value
+
+A `strict` function that returns `undefined` or `null` used to be treated
+like `"ignore"`. It is now treated like `"warn"` (the default behavior). Return `false` or
+`"ignore"` explicitly to suppress the warning:
+
+```js
+// Before
+strict: (errorCode) => {
+    if (errorCode === "unicodeTextInMathMode") {
+        return "error";
+    }
+}
+
+// After
+strict: (errorCode) => {
+    if (errorCode === "unicodeTextInMathMode") {
+        return "error";
+    }
+    return "ignore";
+}
+```
+
+### TypeScript
+
+`StrictFunction` in `katex.d.ts` changed:
+
+- Its return type no longer includes `undefined`, so a function that can fall
+  through without returning no longer typechecks.
+- Its `token` parameter is now optional (`token?: Token`). Check it before
+  using it, for example `token?.loc`.
+
+## v0.18.0
+
+KaTeX's internal CSS classes are now prefixed with `katex-`. If you apply custom
+styles or maintain allowlists (for example, in a content sanitizer) that target
+KaTeX's internal classes, you must update your selectors. The list of
+renamed classes is:
+
+|Before        |After               |
+|--------------|--------------------|
+|`.accent`     |`.katex-accent`     |
+|`.base`       |`.katex-base`       |
+|`.fix`        |`.katex-fix`        |
+|`.hdashline`  |`.katex-hdashline`  |
+|`.hline`      |`.katex-hline`      |
+|`.inner`      |`.katex-inner`      |
+|`.newline`    |`.katex-newline`    |
+|`.overlay`    |`.katex-overlay`    |
+|`.overline`   |`.katex-overline`   |
+|`.root`       |`.katex-root`       |
+|`.rule`       |`.katex-rule`       |
+|`.sizing`     |`.katex-sizing`     |
+|`.smash`      |`.katex-smash`      |
+|`.sout`       |`.katex-sout`       |
+|`.stretchy`   |`.katex-stretchy`   |
+|`.strut`      |`.katex-strut`      |
+|`.tag`        |`.katex-tag`        |
+|`.thinbox`    |`.katex-thinbox`    |
+|`.underline`  |`.katex-underline`  |
+|`.vbox`       |`.katex-vbox`       |
+
+## v0.17.0
+
+The internal API for `__defineFunction` changed: properties should no longer be
+wrapped in `props`. Move the members of `props` up to the top level of the
+definition object. For example:
+
+```js
+// Before
+katex.__defineFunction({
+    type: "overline",
+    names: ["\\overline"],
+    props: {
+        numArgs: 1,
+    },
+    handler(context, args) { /* ... */ },
+});
+
+// After
+katex.__defineFunction({
+    type: "overline",
+    names: ["\\overline"],
+    numArgs: 1,
+    handler(context, args) { /* ... */ },
+});
+```
+
+## v0.16.0
+
+The `copy-tex` extension no longer has (or requires) a CSS file. Remove any
+import of `copy-tex.css`, such as `require('katex/dist/contrib/copy-tex.css')`
+or `<link>`s to it.
+
+## v0.15.0
+
+`\relax` is now implemented as a function. It'll stop expansions and parsing,
+so the behavior around `\relax` may change. For example, `\kern2\relax em` will
+no longer work.
+
+## v0.14.0
+
+With module loaders that support conditional exports and ECMAScript modules,
+`import katex from 'katex';` will import the ECMAScript module.
+
+You can now use:
+|Before                                    |After                             |
+|------------------------------------------|----------------------------------|
+|`require('katex/dist/contrib/[name].js')` | `require('katex/contrib/[name]')`|
+|`import katex from 'katex/dist/katex.mjs'`| `import katex from 'katex'`      |
+|`import 'katex/dist/contrib/[name].mjs'`  | `import 'katex/contrib/[name]'`  |
+
+## v0.13.0
+
+### Macro arguments
+Tokens will not be expanded while parsing a macro argument. For example, `\frac\foo\foo`,
+where the `\foo` is defined as `12`, will be parsed as `\frac{12}{12}`, not
+`\frac{1}{2}12`. To expand the argument before parsing, `\expandafter` can
+be used like `\expandafter\frac\foo\foo`.
+
+### `\def`
+`\def` no longer accepts a control sequence enclosed in braces. For example,
+`\def{\foo}{}` no longer works and should be changed to `\def\foo{}`.
+
+It also no longer accepts replacement text not enclosed in braces. For example,
+`\def\foo1` no longer works and should be changed to `\def\foo{1}`.
+
+### `\newline` and `\cr`
+`\newline` and `\cr` no longer takes an optional size argument. To specify vertical
+spacing, `\\` should be used.
+
+### `\cfrac`, `\color`, `\textcolor`, `\colorbox`, `\fcolorbox`
+They are no longer allowed as an argument to primitive commands, such as `\sqrt`
+(without the optional argument) and super/subscript. For example,
+`\sqrt\textcolor{red}{x}` no longer works and should be changed to
+`\sqrt{\textcolor{red}{x}}`.

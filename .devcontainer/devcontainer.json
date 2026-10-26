@@ -1,0 +1,13 @@
+{
+  "name": "KaTeX Codespaces",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "stylelint.vscode-stylelint"
+      ]
+    }
+  },
+  "postCreateCommand": "corepack enable && pnpm install",
+}

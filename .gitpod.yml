@@ -1,0 +1,19 @@
+tasks:
+  - init: pnpm install
+    command: pnpm start
+  - openMode: split-right
+    command: echo "Run 'pnpm test' to run tests."
+
+ports:
+  - port: 7936
+    onOpen: open-preview
+
+github:
+  # https://www.gitpod.io/docs/prebuilds/#configure-prebuilds
+  prebuilds:
+    pullRequestsFromForks: true
+
+vscode:
+  extensions:
+    - dbaeumer.vscode-eslint@2.1.8:02aHhbJ0Q4aGdjHXlTdVKg==
+    - stylelint.vscode-stylelint@0.85.0:GjHxVXEBqt1ud+yaj0V9KQ==
